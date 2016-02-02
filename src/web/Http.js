@@ -10,7 +10,7 @@ Http.prototype.run = function() {
 	app.set('port', this.port);
 	if (process.env.NODE_ENV === "production") {
 		app.use(redirectHeroku);
-		if (process.env.SSL)
+		if (process.env.SSL === "true")
 			app.use(forceSsl);
 		else
 			app.use(downgradeSsl);

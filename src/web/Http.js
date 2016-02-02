@@ -10,7 +10,10 @@ Http.prototype.run = function() {
 	app.set('port', this.port);
 	if (process.env.NODE_ENV === "production") {
 		app.use(redirectHeroku);
-		app.use(forceSsl);
+		if (process.env.SSL)
+			app.use(forceSsl);
+		else
+			app.use(downgradeSsl);
 	}
 	
 	for (var i = 0; i < this.gets.length; i++) {
@@ -45,6 +48,12 @@ function redirectHeroku(req, res, next) {
 function forceSsl(req, res, next) {
 	if (req.headers['x-forwarded-proto'] !== 'https' && req.headers['cf-visitor'] !== "{\"scheme\":\"https\"}")
         return res.redirect(301, ['https://', req.get('Host'), req.url].join(''));
+    return next();
+}
+
+function downgradeSsl(req, res, next) {
+	if (req.headers["x-forwarded-proto"] === "https")
+        return res.redirect(301, ["http://", req.get("Host"), req.url].join(""));
     return next();
 }
 

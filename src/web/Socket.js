@@ -28,7 +28,8 @@ Socket.prototype.run = function() {
 		socket.id = that.idIncrement++;
 		that.sockets[socket.id] = socket;
 		socket.on("message", function(message, flags) {
-			console.log(message);
+			if (process.env.NODE_ENV === "development")
+				console.log(message);
 			handleMessage(that, message, socket);
 		});
 		socket.on("close", function(code, message) {

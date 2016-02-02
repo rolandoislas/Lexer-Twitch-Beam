@@ -1,0 +1,8 @@
+{
+  "name": "Lexer",
+  "description": "A word game.",
+  "repository": "",
+  "logo": "",
+  "keywords": ["node", "word game"],
+  "image": "heroku/nodejs"
+}

@@ -1,0 +1,30 @@
+* {
+	margin: 0;
+}
+.game {
+	float: left;
+}
+.sidebar {
+	width: auto;
+	float: left;
+	margin: 0 0 0 5px;
+}
+.players {
+	width: 200px;
+    height: auto;
+	white-space: nowrap;
+	overflow: hidden;
+}
+.log {
+	width: 200px;
+    height: 300px;
+    overflow-y: auto;
+	font-size: 12px;
+	margin: 10px 0 0 0;
+}
+.log p {
+	margin: 0 0 5px 0;
+}
+.stat {
+	margin: 0 0 0 10px;
+}

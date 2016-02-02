@@ -1,0 +1,19 @@
+The following are third-party tools used in Lexer.
+
+Node.js
+https://nodejs.org
+
+EJS
+http://ejs.co/
+
+Express
+http://expressjs.com/
+
+ws
+https://github.com/websockets/ws
+
+EOWL
+http://dreamsteep.com/projects/the-english-open-word-list.html
+
+CraftJS
+http://craftyjs.com/

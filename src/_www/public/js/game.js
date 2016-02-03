@@ -59,7 +59,7 @@
 		blank: 0
 	};
 	var socket;
-	var isWaiting;
+	var isWaiting = true;
 	var waitMessageId;
 	var playerId;
 	var turn;
@@ -188,7 +188,10 @@
 		socket = new WebSocket(location.protocol.replace("http", "ws") + "//" 
 			+ location.hostname + (location.port ? ":" + location.port : ""), "protocolOne");
 		socket.onopen = function(event) {
-			socket.send(Codec.encode("requestGame"));
+			socket.send(Codec.encode("requestGame", {
+				size: typeof size === "undefined" ? -1 : size,
+				id: typeof id === "undefined" ? -1 : id
+			}));
 		};
 		socket.onclose = function(event) {
 			var p = $("<p>");
@@ -200,14 +203,16 @@
 			console.log(event.data);
 			var command = Codec.decode(event.data);
 			if (command.type === "waitForGame") {
-				isWaiting = true;
-				var message = displayMessage("Waiting for opponent.", function(e) {
-					if (!isWaiting)
-						this.destroy();
-				});
-				waitMessageId = message.getId();
+				if (isWaiting) {
+					var message = displayMessage("Waiting for opponent.<br>" + getJoinMessage(), function(e) {
+						if (!isWaiting)
+							this.destroy();
+					});
+					waitMessageId = message.getId();
+				}
 			} else if (command.type === "start") {
 				playerId = command.data.id;
+				isWaiting = false;
 				if (typeof waitMessageId !== "undefined") {
 					Crafty(waitMessageId).destroy();
 					waitMessageId = "undefined";
@@ -257,6 +262,16 @@
 					displayClickDestructMessage(message, 10000);
 			}
 		};
+	}
+	
+	function getJoinMessage() {
+		if (location.pathname.split("/")[1] !== "create")
+			return "";
+		var message = "Join link:<br>";
+		message += "<input onClick=\"this.select()\" readonly value=\""
+		message += location.origin + "/join/" + location.pathname.split("/")[3];
+		message += "\">";
+		return message;
 	}
 	
 	function decrementActivePlayerTime() {

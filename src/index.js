@@ -16,19 +16,58 @@ webServer.addGet("/", function(req, res) {
 		description: "A word game built with web sockets and JavaScript."
 	});
 });
+webServer.addGet("/random/:size", function(req, res, next) {
+	req.params.size = parseInt(req.params.size);
+	if ((!Number.isInteger(req.params.size)) || req.params.size < 1 || req.params.size > 4)
+		return next();
+	res.render("pages/game", {
+		title: "",
+		description: "Join a random game of Lexer.",
+		size: req.params.size
+	});
+});
+webServer.addGet("/create/:size/:id", function(req, res, next) {
+	req.params.size = parseInt(req.params.size);
+	if ((!Number.isInteger(req.params.size)) || req.params.size < 1 || req.params.size > 4)
+		return next();
+	res.render("pages/game", {
+		title: "",
+		description: "Join a random game of Lexer.",
+		size: req.params.size,
+		id: req.params.id
+	});
+});
+webServer.addGet("/join/:id", function(req, res, next) {
+	res.render("pages/game", {
+		title: "",
+		description: "Join a random game of Lexer.",
+		id: req.params.id
+	});
+});
 
 var socketServer = new Socket(webServer.run());
 var logic = new Logic(socketServer);
-socketServer.addCommand("requestGame", function(socket, command) {
-	logic.getOpenGame(socket.id, function(err, id) {
+webServer.addGetLive("/ajax/getId", function(req, res, next) {
+	logic.getNewId(function(err, id) {
 		if (err)
-			socket.send(Codec.encode("error"));
+			res.status(500).json(err);
+		res.json({id: id});
+	});
+});
+socketServer.addCommand("requestGame", function(socket, command) {
+	logic.getOpenGame(socket.id, command.data.size, command.data.id, function(err, id) {
+		if (err)
+			return socket.send(Codec.encode("error"));
+		if (command.size == -1 && id == -1 && command.data.id != -1)
+			return socket.send(Codec.encode("error", {message: "Game not found."}));
 		if (id == -1)
-			logic.createNewLobby(socket.id, function(err) {
+			logic.createNewLobby(socket.id, command.data.size, command.data.id, function(err) {
 				if (err)
-					socket.send(Codec.encode("error"));
+					return socket.send(Codec.encode("error", {message: err.message}));
 				socket.send(Codec.encode("waitForGame"));
 			});
+		else
+			socket.send(Codec.encode("waitForGame"));
 	});
 });
 socketServer.addCommand("boardPush", function(socket, command) {

@@ -101,13 +101,16 @@ var Logic = function(socketServer) {
 	};
 };
 
-Logic.prototype.getOpenGame = function(player, callback) {
+Logic.prototype.getOpenGame = function(player, size, id, callback) {
 	var that = this;
 	this.redis.get("games", function(err, data) {
 		if (data === null || data.length == 0)
 			return callback(null, -1);
-		for (var i = 0; i < data.length; i++)
-			if (data[i].open) {
+		for (var i = 0; i < data.length; i++) {
+			var isOpen = data[i].open;
+			var correctSize = size == -1 ? true : data[i].maxPlayers == size;
+			var correctId = id == -1 ? true : data[i].id === id;
+			if (isOpen && correctSize && correctId) {
 				data[i].players.push(player);
 				// Game start
 				if (data[i].players.length == data[i].maxPlayers) {
@@ -141,6 +144,7 @@ Logic.prototype.getOpenGame = function(player, callback) {
 				that.redis.set("games", data);
 				return callback(null, data[i].id);
 			}
+		}
 		return callback(null, -1);
 	});
 };
@@ -181,16 +185,16 @@ function getFilledRack(rack, tiles) {
 	return {rack: rack, tiles: tiles};
 }
 
-Logic.prototype.createNewLobby = function(player, callback) {
+Logic.prototype.createNewLobby = function(player, size, id, callback) {
 	var that = this;
 	this.redis.get("games", function(err, data) {
 		if (data === null)
 			data = [];
 		var game = {
-			id: getId(data),
+			id: id == -1 ? getId(data) : id,
 			players: [player],
 			open: true,
-			maxPlayers: 2,
+			maxPlayers: size,
 			board: that.blankBoard,
 			score: {},
 			rack: [],
@@ -549,6 +553,17 @@ Logic.prototype.swapTiles = function(player, swap, callback) {
 		// save
 		that.redis.set("games", data);
 		return callback(null);
+	});
+};
+
+Logic.prototype.getNewId = function(callback) {
+	var that = this;
+	this.redis.get("games", function(err, data) {
+		if (data === null)
+			data = [];
+		if (err)
+			return callback(err);
+		return callback(null, getId(data));
 	});
 };
 

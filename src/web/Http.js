@@ -1,36 +1,37 @@
 var Http = function(port) {
 	this.port = port;
 	this.Express = require('express');
+	this.app = new this.Express();
 	this.gets = [];
 	this.posts = [];
 };
 
 Http.prototype.run = function() {
-	var app = new this.Express();
-	app.set('port', this.port);
+	this.app.set('port', this.port);
 	if (process.env.NODE_ENV === "production") {
-		app.use(redirectHeroku);
+		this.app.use(redirectHeroku);
 		if (process.env.SSL === "true")
-			app.use(forceSsl);
+			this.app.use(forceSsl);
 		else
-			app.use(downgradeSsl);
+			this.app.use(downgradeSsl);
 	}
 	
 	for (var i = 0; i < this.gets.length; i++) {
-		app.get(this.gets[i][0], this.gets[i][1]);
+		this.app.get(this.gets[i][0], this.gets[i][1]);
 	}
 	
 	this.posts.forEach(function(post) {
-		app.post(post[0], post[1]);
+		this.app.post(post[0], post[1]);
 	});
 	
-	app.use(this.Express.static(__dirname + '/../_www/public'));
-	app.set('views', __dirname + '/../_www/views');
-	app.set('view engine', 'ejs');
-	app.use(handle404);
+	this.app.use(this.Express.static(__dirname + '/../_www/public'));
+	this.app.set('views', __dirname + '/../_www/views');
+	this.app.set('view engine', 'ejs');
+	this.app.use(handle404);
 	
-	return app.listen(app.get('port'), function() {
-	  console.log('Web server running on port', app.get('port'));
+	var that = this;
+	return this.app.listen(this.app.get('port'), function() {
+	  console.log('Web server running on port', that.app.get('port'));
 	});
 };
 
@@ -59,6 +60,11 @@ function downgradeSsl(req, res, next) {
 
 Http.prototype.addGet = function(path, callback) {
 	this.gets.push([path, callback]);
+};
+Http.prototype.addGetLive = function(path, callback) {
+	this.app._router.stack.splice(this.app._router.stack.length - 1, 1);
+	this.app.get(path, callback);
+	this.app.use(handle404);
 };
 
 Http.prototype.addPost = function(path, callback) {

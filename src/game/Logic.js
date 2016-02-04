@@ -381,6 +381,8 @@ function areWordsValid(that, words, callback, index) {
 }
 
 function isWordValid(that, word, callback) {
+	if (!/[a-z]/.test(word.toLowerCase()))
+		return callback(false);
 	var lineReader;
 	try {
 		lineReader = that.ReadLine.createInterface({
@@ -398,6 +400,31 @@ function isWordValid(that, word, callback) {
 		callback(found);
 	});
 }
+
+Logic.prototype.checkWord = function(player, word) {
+	var that = this;
+	this.redis.get("games", function(err, data) {
+		if (err)
+			return callback(err);
+		// game index
+		var game;
+		for (var i = 0; i < data.length; i++)
+			if (data[i].players.indexOf(player) > -1)
+				game = i;
+		// check word
+		isWordValid(that, word, function(valid) {
+			var playerName = "[Word Lookup] " + data[game].name[player];
+			if (valid)
+				that.socket.send(data[game].players, that.Codec.encode("log", {
+					message: playerName + " managed to construct a valid string of characters."
+				}));
+			else
+				that.socket.send(data[game].players, that.Codec.encode("log", {
+					message: playerName + " looked up a random string of gibberish."
+				}));
+		});
+	});
+};
 
 Logic.prototype.startNextTurn = function(player, points, callback) {
 	var that = this;

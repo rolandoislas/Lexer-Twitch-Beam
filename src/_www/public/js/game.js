@@ -82,6 +82,19 @@
 		createBackground();
 		createButtons();
 		connectToServer();
+		addEvents();
+	}
+	
+	function addEvents() {
+		$(".wordCheckSubmit").on("click", checkWord);
+		$(".wordCheckInput").on("keypress", checkWord);
+	}
+	
+	function checkWord(e) {
+		if (e.type === "keypress" && e.which != 13)
+			return;
+		var word = $(".wordCheckInput").val();
+		socket.send(Codec.encode("checkWord", {word: word}));
 	}
 	
 	function createButtons() {

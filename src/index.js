@@ -109,6 +109,9 @@ socketServer.addCommand("swap", function(socket, command) {
 		});
 	});
 });
+socketServer.addCommand("checkWord", function(socket, command) {
+	logic.checkWord(socket.id, command.data.word);
+});
 socketServer.run();
 
 process.on("uncaughtException", function(err) {

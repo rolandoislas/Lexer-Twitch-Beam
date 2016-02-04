@@ -15,14 +15,14 @@
 	white-space: nowrap;
 	overflow: hidden;
 }
-.log {
+.log, .chat {
 	width: 200px;
-    max-height: 200px;
-    overflow-y: auto;
+    height: 200px;
+    overflow-y: scroll;
 	font-size: 12px;
 	margin: 10px 0 0 0;
 }
-.log p {
+.log p, .chat p {
 	margin: 0 0 5px 0;
 }
 .stat {
@@ -33,14 +33,4 @@
 }
 .wordCheckSubmit, .chatSubmit {
 	width: 54px;
-}
-.chat {
-	width: 200px;
-    max-height: 200px;
-    overflow-y: auto;
-	font-size: 12px;
-	margin: 10px 0 0 0;
-}
-.chat p {
-	margin: 0 0 5px 0;
 }

@@ -267,10 +267,8 @@ Logic.prototype.checkBoardPush = function(player, proposedBoard, callback) {
 			return callback(null, false, "Start in the middle! k thx bai");
 		// word check
 		var words = [];
-		var points = {};
 		for (var i = 0; i < changed.length; i++) {
-			var ws = ["", ""];
-			var ps = [0, 0];
+			var ws = [["", "h", 0], ["", "v", 0]]; // word, direction, points
 			// horizontal
 			var left, right;
 			var index = changed[0][1];
@@ -283,9 +281,9 @@ Logic.prototype.checkBoardPush = function(player, proposedBoard, callback) {
 			var w2 = 0;
 			var w3 = 0;
 			for (var j = left; j < right + 1; j++) {
-				ws[0] += proposedBoard[changed[i][0]][j];
+				ws[0][0] += proposedBoard[changed[i][0]][j];
 				var isNew = data[game].board[changed[i][0]][j] === "";
-				ps[0] += that.tilePoints[ws[0][ws[0].length - 1].toLowerCase()] 
+				ws[0][2] += that.tilePoints[ws[0][0][ws[0][0].length - 1].toLowerCase()] 
 					* (isNew && that.boardModifiers[changed[i][0]][j] === "2L" ? 2 : 1)
 					* (isNew && that.boardModifiers[changed[i][0]][j] === "3L" ? 3 : 1);
 				if (isNew && that.boardModifiers[changed[i][0]][j] === "2W")
@@ -294,9 +292,9 @@ Logic.prototype.checkBoardPush = function(player, proposedBoard, callback) {
 					w3++;
 			}
 			for (var j = 0; j < w2; j++)
-				ps[0] *= 2;
+				ws[0][2] *= 2;
 			for (var j = 0; j < w3; j++)
-				ps[0] *= 3;
+				ws[0][2] *= 3;
 			// vertical
 			var top, bottom;
 			var index = changed[0][0];
@@ -309,9 +307,9 @@ Logic.prototype.checkBoardPush = function(player, proposedBoard, callback) {
 			w2 = 0;
 			w3 = 0;
 			for (var j = top; j < bottom + 1; j++) {
-				ws[1] += proposedBoard[j][changed[i][1]];
+				ws[1][0] += proposedBoard[j][changed[i][1]];
 				var isNew = data[game].board[j][changed[i][1]]=== "";
-				ps[1] += that.tilePoints[ws[1][ws[1].length - 1].toLowerCase()] 
+				ws[1][2] += that.tilePoints[ws[1][0][ws[1][0].length - 1].toLowerCase()] 
 					* (isNew && that.boardModifiers[j][changed[i][1]] === "2L" ? 2 : 1)
 					* (isNew && that.boardModifiers[j][changed[i][1]] === "3L" ? 3 : 1);
 				if (isNew && that.boardModifiers[j][changed[i][1]] === "2W")
@@ -320,27 +318,25 @@ Logic.prototype.checkBoardPush = function(player, proposedBoard, callback) {
 					w3++;
 			}
 			for (var j = 0; j < w2; j++)
-				ps[1] *= 2;
+				ws[1][2] *= 2;
 			for (var j = 0; j < w3; j++)
-				ps[1] *= 3;
+				ws[1][2] *= 3;
 			// add words
 			words.push(ws[0]);
 			words.push(ws[1]);
-			points[ws[0]] = ps[0];
-			points[ws[1]] = ps[1];
 		}
-		var cleanedWords = [];
-		/*
-		 TODO: There can be instances where a word will be doubled. 
-		 In these cases there would be a vertical and horizontal word.
-		 - -  H
-		 -  K O
-		 V O E
-		*/
+		// Clean words
+		var remove = [];
+		var seen = [];
 		for (var i = 0; i < words.length; i++)
-			if (words[i].length > 1 && cleanedWords.indexOf(words[i]) == -1)
-				cleanedWords.push(words[i]);
-		words = cleanedWords;
+			if (words[i][0].length < 2 || seen.indexOf(words[i][0] + words[i][1]) > -1)
+				remove.push(i);
+			else
+				seen.push(words[i][0] + words[i][1]);
+		for (var i = 0; i < remove.length; i++)
+			words.splice(remove[i] - i, 1);
+		if (words.length < 1)
+			return callback(null, false, "No valid word played.");
 		// valid word
 		areWordsValid(that, words, function(valid, firstInvalid) {
 			if (!valid)
@@ -353,7 +349,7 @@ Logic.prototype.checkBoardPush = function(player, proposedBoard, callback) {
 					data[game].rack[pid].splice(data[game].rack[pid].indexOf(proposedBoard[changed[i][0]][changed[i][1]].toLowerCase()), 1);
 				// add points
 				for (var i = 0; i < words.length; i++)
-					data[game].score[player] += points[words[i]];
+					data[game].score[player] += words[i][2];
 				// save game
 				that.redis.set("games", data);
 				// send data
@@ -361,8 +357,8 @@ Logic.prototype.checkBoardPush = function(player, proposedBoard, callback) {
 				var message = data[game].name[player] + " played: ";
 				var turnPoints = 0;
 				for (var i = 0; i < words.length; i++) {
-					message += words[i] + " [" + points[words[i]] + "], ";
-					turnPoints += points[words[i]];
+					message += words[i][0] + " [" + words[i][2] + "], ";
+					turnPoints += words[i][2];
 				}
 				message = message.replace(/, $/, "") + ".";
 				that.socket.send(data[game].players, that.Codec.encode("log", {message: message}));
@@ -374,9 +370,9 @@ Logic.prototype.checkBoardPush = function(player, proposedBoard, callback) {
 
 function areWordsValid(that, words, callback, index) {
 	index = (typeof index === "undefined") ? 0 : index; 
-	isWordValid(that, words[index], function(valid) {
+	isWordValid(that, words[index][0], function(valid) {
 		if (!valid)
-			return callback(false, words[index]);
+			return callback(false, words[index][0]);
 		if (index == words.length - 1)
 			return callback(true);
 		else

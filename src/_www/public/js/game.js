@@ -77,6 +77,8 @@
 	var swapping;
 	var swapMessageId;
 	var pingClock;
+	var turnSound = new Audio("/audio/turn.mp3");
+	var chatSound = new Audio("/audio/chat.mp3");
 	
 	function loadGame() {
 		createBackground();
@@ -246,8 +248,10 @@
 				clock = setInterval(decrementActivePlayerTime, 1000);
 				turnId = command.data.player;
 				turn = command.data.player == playerId;
-				if (turn)
+				if (turn) {
 					displayClickDestructMessage("It's your turn.", 10000);
+					turnSound.play();
+				}
 			} else if (command.type === "rack") {
 				rackData = command.data;
 				drawRack();
@@ -260,6 +264,8 @@
 			} else if (command.type === "error") {
 				displayClickDestructMessage(command.data.message, 10000);
 			} else if (command.type === "log" || command.type === "chat") {
+				if (command.type === "chat")
+					chatSound.play();
 				var p = $("<p>");
 				p.html(command.data.message);
 				$("." + command.type).append(p);

@@ -17,7 +17,7 @@
 }
 .log {
 	width: 200px;
-    max-height: 300px;
+    max-height: 200px;
     overflow-y: auto;
 	font-size: 12px;
 	margin: 10px 0 0 0;
@@ -28,9 +28,19 @@
 .stat {
 	margin: 0 0 0 10px;
 }
-.wordCheckInput {
+.wordCheckInput, .chatInput {
 	width: 137px;
 }
-.wordCheckSubmit {
+.wordCheckSubmit, .chatSubmit {
 	width: 54px;
+}
+.chat {
+	width: 200px;
+    max-height: 200px;
+    overflow-y: auto;
+	font-size: 12px;
+	margin: 10px 0 0 0;
+}
+.chat p {
+	margin: 0 0 5px 0;
 }

@@ -88,6 +88,16 @@
 	function addEvents() {
 		$(".wordCheckSubmit").on("click", checkWord);
 		$(".wordCheckInput").on("keypress", checkWord);
+		$(".chatSubmit").on("click", sendChat);
+		$(".chatInput").on("keypress", sendChat);
+	}
+	
+	function sendChat(e) {
+		if (e.type === "keypress" && e.which != 13)
+			return;
+		var message = $(".chatInput").val();
+		socket.send(Codec.encode("chat", {message: message}));
+		$(".chatInput").val("");
 	}
 	
 	function checkWord(e) {
@@ -249,11 +259,11 @@
 				enableRack();
 			} else if (command.type === "error") {
 				displayClickDestructMessage(command.data.message, 10000);
-			} else if (command.type === "log") {
+			} else if (command.type === "log" || command.type === "chat") {
 				var p = $("<p>");
 				p.html(command.data.message);
-				$(".log").append(p);
-				$(".log")[0].scrollTop = $(".log")[0].scrollHeight;
+				$("." + command.type).append(p);
+				$("." + command.type)[0].scrollTop = $("." + command.type)[0].scrollHeight;
 			} else if (command.type === "players") {
 				clearInterval(clock);
 				$(".players").html("");

@@ -112,6 +112,9 @@ socketServer.addCommand("swap", function(socket, command) {
 socketServer.addCommand("checkWord", function(socket, command) {
 	logic.checkWord(socket.id, command.data.word);
 });
+socketServer.addCommand("chat", function(socket, command) {
+	logic.sendChat(socket.id, command.data.message);
+});
 socketServer.run();
 
 process.on("uncaughtException", function(err) {

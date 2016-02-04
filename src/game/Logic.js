@@ -415,11 +415,11 @@ Logic.prototype.checkWord = function(player, word) {
 		isWordValid(that, word, function(valid) {
 			var playerName = "[Word Lookup] " + data[game].name[player];
 			if (valid)
-				that.socket.send(data[game].players, that.Codec.encode("log", {
+				that.socket.send(data[game].players, that.Codec.encode("chat", {
 					message: playerName + " managed to construct a valid string of characters."
 				}));
 			else
-				that.socket.send(data[game].players, that.Codec.encode("log", {
+				that.socket.send(data[game].players, that.Codec.encode("chat", {
 					message: playerName + " looked up a random string of gibberish."
 				}));
 		});
@@ -587,6 +587,24 @@ Logic.prototype.getNewId = function(callback) {
 		if (err)
 			return callback(err);
 		return callback(null, getId(data));
+	});
+};
+
+Logic.prototype.sendChat = function(player, message) {
+	var that = this;
+	this.redis.get("games", function(err, data) {
+		if (err)
+			return callback(err);
+		// game index
+		var game;
+		for (var i = 0; i < data.length; i++)
+			if (data[i].players.indexOf(player) > -1)
+				game = i;
+		// clean message
+		message = message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+		message = data[game].name[player] + ": " + message;
+		//send
+		that.socket.send(data[game].players, that.Codec.encode("chat", {message: message}));
 	});
 };
 

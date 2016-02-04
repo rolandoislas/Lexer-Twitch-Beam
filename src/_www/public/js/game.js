@@ -76,6 +76,7 @@
 	var endClock;
 	var swapping;
 	var swapMessageId;
+	var pingClock;
 	
 	function loadGame() {
 		createBackground();
@@ -203,6 +204,7 @@
 			console.log(event.data);
 			var command = Codec.decode(event.data);
 			if (command.type === "waitForGame") {
+				pingClock = setInterval(ping, 20000);
 				if (isWaiting) {
 					var message = displayMessage("Waiting for opponent.<br>" + getJoinMessage(), function(e) {
 						if (!isWaiting)
@@ -253,6 +255,7 @@
 				}
 			} else if (command.type === "end") {
 				clearInterval(endClock);
+				clearInterval(pingClock);
 				var message = "";
 				if (command.data.winner === playerId)
 					message = "You have won the game."
@@ -262,6 +265,10 @@
 					displayClickDestructMessage(message, 10000);
 			}
 		};
+	}
+	
+	function ping() {
+		socket.send(Codec.encode("ping"));
 	}
 	
 	function getJoinMessage() {

@@ -201,7 +201,8 @@ Logic.prototype.createNewLobby = function(player, size, id, callback) {
 			tiles: that.baseTiles,
 			turn: 0,
 			time: {},
-			name: {}
+			name: {},
+			lastSix: []
 		};
 		data.push(game);
 		that.redis.set("games", data);
@@ -452,6 +453,10 @@ Logic.prototype.startNextTurn = function(player, points, callback) {
 		// set turn
 		data[game].turn = data[game].turn == data[game].players.length - 1
 			? 0 : data[game].turn + 1;
+		// update last six scores
+		data[game].lastSix.push(points);
+		if (data[game].lastSix.length > 6)
+			data[game].lastSix.splice(0, 1);
 		// send data
 		that.socket.send(player, that.Codec.encode("rack", data[game].rack[pid]));
 		sendPlayers(that, data[game]);
@@ -487,6 +492,15 @@ Logic.prototype.checkEnd = function(player, callback) {
 				doEnd(that, data[game]);
 				return callback(null);
 			}
+		}
+		// check 6 0-point turns
+		var zeroes = 0;
+		for (var i = 0; i < data[game].lastSix.length; i++)
+			if (data[game].lastSix[i] == 0)
+				zeroes++;
+		if (zeroes == 6) {
+			doEnd(that, data[game]);
+			return callback(null);
 		}
 		// check time end
 		for (var i = 0; i < data[game].players.length; i++) {

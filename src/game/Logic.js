@@ -6,7 +6,9 @@ var Logic = function(socketServer) {
 	this.fs = require("fs");
 	this.redis = new this.Redis();
 	this.socket = socketServer;
-	this.gameTime = 10 * 60 *1000;
+	this.gameTime = 30 * 60 *1000; // 30 minutes
+	this.turnTime = 3 * 60 *1000; // 30 minutes
+	this.turnTimer;
 	this.blankBoard = [
 		["", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],
 		["", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],
@@ -128,17 +130,12 @@ Logic.prototype.getOpenGame = function(player, size, id, callback) {
 						// set time
 						data[i].time[data[i].players[j]] = data[i].startTime;
 						// set name
-						data[i].name[data[i].players[j]] = "Player " + (j + 1);
+						data[i].name[data[i].players[j]] = j == 0 ? "Twitch" : "Beam";
 						// set score
 						data[i].score[data[i].players[j]] = 0;
-						// send
-						that.socket.send(p, that.Codec.encode("start", {id: p}));
-						that.socket.send(p, that.Codec.encode("rack", data[i].rack[j]));
+						// set rack pos
+						data[i].rackPos[j] = [];
 					}
-					// Start the turn
-					that.socket.send(data[i].players, that.Codec.encode("board", data[i].board));
-					sendPlayers(that, data[i]);
-					that.socket.send(data[i].players, that.Codec.encode("turn", {player: data[i].players[0]}));
 				}
 				// Save
 				that.redis.set("games", data);
@@ -146,6 +143,22 @@ Logic.prototype.getOpenGame = function(player, size, id, callback) {
 			}
 		}
 		return callback(null, -1);
+	});
+};
+
+Logic.prototype.broadcastGameState = function(callback) {
+	var that = this;
+	this.redis.get("games", function(err, data) {
+		if (data === null || data.length == 0 || err)
+			return;
+		// game index
+		var game = 0;
+		that.socket.broadcast(that.Codec.encode("rack", {rack: data[game].rack[0], id: 0}));
+		that.socket.broadcast(that.Codec.encode("rack", {rack: data[game].rack[1], id: 1}));
+		that.socket.broadcast(that.Codec.encode("rackPos", data[game].rackPos));
+		that.socket.broadcast(that.Codec.encode("board", data[game].board));
+		sendPlayers(that, data[game]);
+		that.socket.broadcast(that.Codec.encode("turn", {player: data[game].players[0]}));
 	});
 };
 
@@ -157,7 +170,7 @@ function sendPlayers(that, game) {
 		players[p].score = game.score[p];
 		players[p].time = that.gameTime - (game.time[p] - game.startTime); // 10 - time diff
 	});
-	that.socket.send(game.players, that.Codec.encode("players", players));
+	that.socket.broadcast(that.Codec.encode("players", players));
 }
 
 function getFilledRack(rack, tiles) {
@@ -198,6 +211,7 @@ Logic.prototype.createNewLobby = function(player, size, id, callback) {
 			board: that.blankBoard,
 			score: {},
 			rack: [],
+			rackPos: [],
 			tiles: that.baseTiles,
 			turn: 0,
 			time: {},
@@ -207,6 +221,21 @@ Logic.prototype.createNewLobby = function(player, size, id, callback) {
 		data.push(game);
 		that.redis.set("games", data);
 		return callback();
+	});
+};
+
+Logic.prototype.createGame = function(size, id, callback) {
+	var that = this;
+	this.createNewLobby(0, size, id, function() {
+		that.getOpenGame(1, size, id, function(err, gameId) {
+			that.broadcastGameState();
+			that.socket.broadcast(that.Codec.encode("log", {message: "New game started."}));
+			clearInterval(that.turnTimer);
+			that.turnTimer = setInterval(function() {
+				that.startNextTurn(0, 0);
+			}, that.turnTime);
+			return callback(null);
+		});
 	});
 };
 
@@ -247,7 +276,7 @@ Logic.prototype.checkBoardPush = function(player, proposedBoard, callback) {
 			}
 		}
 		if (changed.length < 1)
-			return callback(null, false, "There is a skip turn button.");
+			return callback(null, false, "No word has been played.");
 		// check letters used are available to the player
 		for (var i = 0; i < changed.length; i++)
 			if (data[game].rack[data[game].players.indexOf(player)].indexOf(proposedBoard[changed[i][0]][changed[i][1]].toLowerCase()) == -1)
@@ -348,13 +377,25 @@ Logic.prototype.checkBoardPush = function(player, proposedBoard, callback) {
 				var pid = data[game].players.indexOf(player);
 				for (var i = 0; i < changed.length; i++)
 					data[game].rack[pid].splice(data[game].rack[pid].indexOf(proposedBoard[changed[i][0]][changed[i][1]].toLowerCase()), 1);
+				// clear conflicting rackPos
+				for (var i = 0; i < data[game].maxPlayers; i++)
+					for (var j = 0; j < changed.length; j++) {
+						inner:
+						for (var key in data[game].rackPos[i]) {
+							var pos = data[game].rackPos[i][key];
+							if (pos.x == changed[j][1] && pos.y == changed[j][0]) {
+								data[game].rackPos[i].splice(key, 1);
+								break inner;
+							}
+						}
+					}
 				// add points
 				for (var i = 0; i < words.length; i++)
 					data[game].score[player] += words[i][2];
 				// save game
 				that.redis.set("games", data);
 				// send data
-				that.socket.send(data[game].players, that.Codec.encode("board", data[game].board));
+				that.socket.broadcast(that.Codec.encode("board", data[game].board));
 				var message = data[game].name[player] + " played: ";
 				var turnPoints = 0;
 				for (var i = 0; i < words.length; i++) {
@@ -362,7 +403,7 @@ Logic.prototype.checkBoardPush = function(player, proposedBoard, callback) {
 					turnPoints += words[i][2];
 				}
 				message = message.replace(/, $/, "") + ".";
-				that.socket.send(data[game].players, that.Codec.encode("log", {message: message}));
+				that.socket.broadcast(that.Codec.encode("log", {message: message}));
 				return callback(null, true, null, turnPoints);
 			}
 		});
@@ -416,11 +457,11 @@ Logic.prototype.checkWord = function(player, word) {
 		isWordValid(that, word, function(valid) {
 			var playerName = "[Word Lookup] " + data[game].name[player];
 			if (valid)
-				that.socket.send(data[game].players, that.Codec.encode("chat", {
+				that.socket.broadcast(that.Codec.encode("chat", {
 					message: playerName + " managed to construct a valid string of characters."
 				}));
 			else
-				that.socket.send(data[game].players, that.Codec.encode("chat", {
+				that.socket.broadcast(that.Codec.encode("chat", {
 					message: playerName + " looked up a random string of gibberish."
 				}));
 		});
@@ -428,7 +469,12 @@ Logic.prototype.checkWord = function(player, word) {
 };
 
 Logic.prototype.startNextTurn = function(player, points, callback) {
+	callback = typeof callback === "undefined" ? function() {} : callback;
 	var that = this;
+	clearInterval(this.turnTimer);
+	this.turnTimer = setInterval(function() {
+		that.startNextTurn(player == 0 ? 1 : 0, 0);
+	}, that.turnTime);
 	this.redis.get("games", function(err, data) {
 		if (err)
 			return callback(err);
@@ -458,17 +504,20 @@ Logic.prototype.startNextTurn = function(player, points, callback) {
 		if (data[game].lastSix.length > 6)
 			data[game].lastSix.splice(0, 1);
 		// send data
-		that.socket.send(player, that.Codec.encode("rack", data[game].rack[pid]));
+		that.socket.broadcast(that.Codec.encode("rack", {rack: data[game].rack[pid], id: player}));
+		that.socket.broadcast(that.Codec.encode("rackPos", data[game].rackPos));
 		sendPlayers(that, data[game]);
-		that.socket.send(data[game].players, that.Codec.encode("turn", {
+		that.socket.broadcast(that.Codec.encode("turn", {
 			player: data[game].players[data[game].turn]
 		}));
 		var message = data[game].name[player] + " ended their turn for " + points + " points.";
-		that.socket.send(data[game].players, that.Codec.encode("log", {message: message}));
+		that.socket.broadcast(that.Codec.encode("log", {message: message}));
 		// save data
 		that.redis.set("games", data);
 		// check end
-		that.checkEnd(player, function() {});
+		that.checkEnd(player, function(err) {
+			return callback(null);
+		});
 	});
 };
 
@@ -483,7 +532,7 @@ Logic.prototype.checkEnd = function(player, callback) {
 			if (data[i].players.indexOf(player) > -1)
 				game = i;
 		if (typeof game === "undefined") {
-			that.socket.send(player, that.Codec.encode("end", {winner: -1}));
+			that.socket.broadcast(that.Codec.encode("end", {winner: -1}));
 			return callback(null);
 		}
 		// check out (clean rack) end
@@ -514,10 +563,12 @@ Logic.prototype.checkEnd = function(player, callback) {
 				return callback(null);
 			}
 		}
+		return callback(null);
 	});
 };
 
 function doEnd(that, game, disconnected) {
+	clearInterval(that.turnTimer);
 	if (!game.open) {
 		// calculate player in lead
 		var winning = -1;
@@ -537,13 +588,13 @@ function doEnd(that, game, disconnected) {
 		}
 		// send winner
 		if (disconnected)
-			that.socket.send(game.players, that.Codec.encode("log", {
+			that.socket.broadcast(that.Codec.encode("log", {
 				message: "A player has disconnected."
 			}));
 		sendPlayers(that, game);
-		that.socket.send(game.players, that.Codec.encode("end", {winner: winning}));
+		that.socket.broadcast(that.Codec.encode("end", {winner: winning}));
 		var message = game.name[winning] + " has won the game.";
-		that.socket.send(game.players, that.Codec.encode("log", {message: message}));
+		that.socket.broadcast(that.Codec.encode("log", {message: message}));
 	}
 	// delete game
 	that.redis.get("games", function(err, data) {
@@ -579,14 +630,18 @@ Logic.prototype.swapTiles = function(player, swap, callback) {
 				game = i;
 		// remove matching tiles
 		var pid = data[game].players.indexOf(player);
+		var size = data[game].rack[pid].length;
 		for (var i = 0; i < swap.length; i++) {
 			var index = data[game].rack[pid].indexOf(swap[i].toLowerCase());
 			if (index > -1)
-				data[game].rack[pid].splice(index);
+				data[game].rack[pid].splice(index, 1);
 		}
+		if (data[game].rack[pid].length == size)
+			return callback("Not found in rack.");
+		data[game].rackPos[player] = [];
 		var message = data[game].name[player] + " swapped " + (swap.length) + " tiles.";
 		if (data[game].players[data[game].turn] == player) // their turn
-			that.socket.send(data[game].players, that.Codec.encode("log", {message: message}));
+			that.socket.broadcast(that.Codec.encode("log", {message: message}));
 		// save
 		that.redis.set("games", data);
 		return callback(null);
@@ -618,7 +673,142 @@ Logic.prototype.sendChat = function(player, message) {
 		message = message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 		message = data[game].name[player] + ": " + message;
 		//send
-		that.socket.send(data[game].players, that.Codec.encode("chat", {message: message}));
+		that.socket.broadcast(that.Codec.encode("chat", {message: message}));
+	});
+};
+
+Logic.prototype.submitTilePosition = function(player, x, y, letter, chatName, callback) {
+	var that = this;
+	this.redis.get("games", function(err, data) {
+		if (err)
+			return callback(err);
+		// game index
+		var game;
+		for (var i = 0; i < data.length; i++)
+			if (data[i].players.indexOf(player) > -1)
+				game = i;
+		// check if tile is in rack
+		var pid = data[game].players.indexOf(player);
+		var count = 0;
+		data[game].rack[pid].forEach(function(l) {
+			if (l.toLowerCase() === letter.toLowerCase()) 
+				count++;
+		});
+		if (count == 0)
+			return callback("Tile \"" + letter.toUpperCase() + "\" not available.");
+		var boardCount = 0; // amount pending on board
+		data[game].rackPos[player].forEach(function(tile) {
+			if (tile.l.toLowerCase() === letter.toLowerCase())
+				boardCount++;
+		});
+		// check if space is free on board and pending
+		var pendingFilled = false;
+		data[game].rackPos[player].forEach(function(tile) {
+			if (tile.x == x && tile.y == y)
+				pendingFilled = true;
+		});
+		if (data[game].board[y][x] !== "" || pendingFilled)
+			return callback("Slot filled.");
+		// set position
+		var set = false;
+		for (var i = 0; i < data[game].rack[pid].length; i++) {
+			if (data[game].rack[pid][i].toLowerCase() === letter.toLowerCase())
+				if (count - boardCount >= 1) {
+					data[game].rackPos[player].push({l: letter.toLowerCase(), x: x, y: y});
+					set = true;
+					break;
+				}
+		}
+		if (!set)
+			return callback("No playable tile in rack. Try removing tiles from the board first.");
+		// save
+		that.redis.set("games", data);
+		that.socket.broadcast(that.Codec.encode("chat", {
+			message: chatName + ": " + x + "-" + y + " " + letter,
+			player: player
+		}));
+		that.socket.broadcast(that.Codec.encode("rackPos", data[game].rackPos));
+		return callback(null);
+	});
+};
+
+Logic.prototype.removeTile = function(player, x, y, chatName, callback) {
+	var that = this;
+	this.redis.get("games", function(err, data) {
+		if (err)
+			return callback(err);
+		// game index
+		var game;
+		for (var i = 0; i < data.length; i++)
+			if (data[i].players.indexOf(player) > -1)
+				game = i;
+		// remove tile from pending if found
+		var index = -1;
+		data[game].rackPos[player].forEach(function(tile) {
+			if (tile.x == x && tile.y == y)
+				index = data[game].rackPos[player].indexOf(tile);
+		});
+		if (index < 0)
+			return callback("No tile to remove.");
+		data[game].rackPos[player].splice(index, 1);
+		// save
+		that.redis.set("games", data);
+		that.socket.broadcast(that.Codec.encode("chat", {
+			message: chatName + ": remove " + x + "-" + y,
+			player: player
+		}));
+		that.socket.broadcast(that.Codec.encode("rackPos", data[game].rackPos));
+		return callback(null);
+	});
+};
+
+Logic.prototype.submitTurn = function(player, chatName, callback) {
+	var that = this;
+	this.redis.get("games", function(err, data) {
+		if (err)
+			return callback(err);
+		// game index
+		var game;
+		for (var i = 0; i < data.length; i++)
+			if (data[i].players.indexOf(player) > -1)
+				game = i;
+		// submit board push
+		var proposedBoard = JSON.parse(JSON.stringify(data[game].board));
+		data[game].rackPos[player].forEach(function(tile) {
+			if (typeof tile !== "undefined" && tile !== null)
+				proposedBoard[tile.y][tile.x] = tile.l.toUpperCase();
+		});
+		that.checkBoardPush(player, proposedBoard, function(err, accepted, rejectMessage, points) {
+			if (err)
+				return callback("An error occurred.");
+			if (!accepted)
+				return callback(rejectMessage);
+			// log chat message
+			that.startNextTurn(player, points, function(err, rejectMessage) {
+				if (typeof rejectMessage === "undefined")
+					that.socket.broadcast(that.Codec.encode("chat", {
+						message: chatName + ": submit",
+						player: player
+					}));
+				return callback(rejectMessage);
+			});
+		});
+	});
+};
+
+Logic.prototype.swapTile = function(player, letter, chatName, callback) {
+	var that = this;
+	this.swapTiles(player, [letter], function(err) {
+		if (err)
+			return callback(err);
+		that.startNextTurn(player, 0, function(err, rejectMessage) {
+			if (typeof rejectMessage === "undefined")
+				that.socket.broadcast(that.Codec.encode("chat", {
+					message: chatName + ": swap " + letter,
+					player: player
+				}));
+			return callback(rejectMessage);
+		});
 	});
 };
 

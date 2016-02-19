@@ -2,7 +2,6 @@
 <html>
 <head>
 	<% include ../partials/header.ejs %>
-	<script src="/js/crafty-min.js"></script>
 	<script>
 		<% if (typeof size !== "undefined") { %>
 			var size = <%= size %>;
@@ -11,15 +10,12 @@
 			var id = "<%= id %>";
 		<% } %>
 	</script>
-	<script src="/js/game.js"></script>
+	<script src="/js/control.js"></script>
 </head>
 <body>
 	<% include ../partials/nav.ejs %>
-	<div class="game"></div>
-	<div class="sidebar">
-		<div class="players"></div>
-		<div class="log"></div>
-		<div class="chat"></div>
-	</div>
+	<div class="log"></div>
+	<input id="auth" type="password">
+	<input id="start" type="button" value="Start">
 </boy>
 </html>

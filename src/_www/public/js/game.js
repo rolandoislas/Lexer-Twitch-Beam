@@ -61,10 +61,11 @@
 	var socket;
 	var isWaiting = true;
 	var waitMessageId;
-	var playerId;
+	var playerId = (window.location.href.indexOf("twitch") > -1 ? 0 : 1);
 	var turn;
 	var rack;
 	var rackData;
+	var rackPos = [];
 	var backBoard;
 	var board;
 	var boardIds;
@@ -84,118 +85,15 @@
 		createBackground();
 		createButtons();
 		connectToServer();
-		addEvents();
-	}
-	
-	function addEvents() {
-		$(".wordCheckSubmit").on("click", checkWord);
-		$(".wordCheckInput").on("keypress", checkWord);
-		$(".chatSubmit").on("click", sendChat);
-		$(".chatInput").on("keypress", sendChat);
-	}
-	
-	function sendChat(e) {
-		if (e.type === "keypress" && e.which != 13)
-			return;
-		var message = $(".chatInput").val();
-		socket.send(Codec.encode("chat", {message: message}));
-		$(".chatInput").val("");
-	}
-	
-	function checkWord(e) {
-		if (e.type === "keypress" && e.which != 13)
-			return;
-		var word = $(".wordCheckInput").val();
-		socket.send(Codec.encode("checkWord", {word: word}));
 	}
 	
 	function createButtons() {
 		infoText = Crafty.e("2D, DOM, Text")
 			.attr({x: width - 50, y: height - 12}).getId();
-			
-		buttons.submit = createTile(">", 0, boardHeight, "undefined", "rgb(204, 204, 204)").getId();
-		Crafty(buttons.submit).x = boardWidth - Crafty(buttons.submit).w;
-		Crafty(buttons.submit).bind("Click", submit);
-		Crafty(buttons.submit).name = "Submit";
-		
-		buttons.recall = createTile("^", 0, boardHeight, "undefined", "rgb(204, 204, 204)").getId();
-		Crafty(buttons.recall).x = boardWidth - Crafty(buttons.submit).w * 2;
-		Crafty(buttons.recall).origin("center");
-		Crafty(buttons.recall).rotation = 180;
-		Crafty(buttons.recall).bind("Click", drawRack);
-		Crafty(buttons.recall).name = "Recall";
-		
-		buttons.skip = createTile("[ ]", 0, boardHeight, "undefined", "rgb(204, 204, 204)").getId();
-		Crafty(buttons.skip).x = boardWidth - Crafty(buttons.skip).w * 3;
-		Crafty(buttons.skip).bind("Click", function(e) {
-			socket.send(Codec.encode("skipTurn"));
-		});
-		Crafty(buttons.skip).name = "Skip";
-		
-		buttons.swap = createTile(")(", 0, boardHeight, "undefined", "rgb(204, 204, 204)").getId();
-		Crafty(buttons.swap).x = boardWidth - Crafty(buttons.skip).w * 4;
-		Crafty(buttons.swap).bind("Click", displaySwapGui);
-		Crafty(buttons.swap).name = "Swap";
-		
-		for (var key in buttons) {
-			Crafty(buttons[key]).bind("MouseOver", function() {
-				setInfoText(typeof this.name === "undefined" ? "" : this.name);
-			});
-			Crafty(buttons[key]).bind("MouseOut", function() {
-				Crafty(infoText).text("");
-			});
-		}
-	}
-	
-	function displaySwapGui() {
-		if (!swapping) {
-			console.log("start swap");
-			swapping = true;
-			drawRack(false);
-			disableRack();
-			rack.forEach(function(id) {
-				Crafty(id).bind("Click", function() {
-					this.color(this.color() === "rgba(255, 0, 0, 1)" ? "rgb(237, 221, 175)" : "rgb(255, 0, 0)");
-				});
-			});
-			var message = "Click the tiles in your rack you wish to swap.<br>"
-				+ "Click the swap button to confirm.<br>"
-				+ "Click this message to cancel.";
-			swapMessageId = displayMessage(message, function() {
-				swapping = false;
-				drawRack();
-				this.destroy();
-			}).getId();
-		} else {
-			var swap = [];
-			rack.forEach(function(id) {
-				var tile = Crafty(id);
-				if (tile.color() === "rgba(255, 0, 0, 1)")
-					swap.push(tile.text() === "" ? "blank" : tile.text());
-			});
-			socket.send(Codec.encode("swap", swap));
-			swapping = false;
-			drawRack();
-			Crafty(swapMessageId).destroy();
-		}
 	}
 	
 	function setInfoText(text) {
 		Crafty(infoText).text(text);
-	}
-	
-	function submit() {
-		disableRack();
-		var proposedBoard = JSON.parse(JSON.stringify(board));
-		rack.forEach(function(id) {
-			var tile = Crafty(id);
-			if (tile.y < boardHeight) {
-				var line = 15 - Math.floor((boardHeight - tile.y) / tile.h);
-				var letter = 15 - Math.floor((boardWidth - tile.x) / tile.w);
-				proposedBoard[line][letter] = tile.text();
-			}
-		});
-		socket.send(Codec.encode("boardPush", proposedBoard));
 	}
 	
 	function disableRack() {
@@ -218,6 +116,7 @@
 				size: typeof size === "undefined" ? -1 : size,
 				id: typeof id === "undefined" ? -1 : id
 			}));
+			pingClock = setInterval(ping, 20000);
 		};
 		socket.onclose = function(event) {
 			var p = $("<p>");
@@ -228,16 +127,7 @@
 		socket.onmessage = function(event) {
 			console.log(event.data);
 			var command = Codec.decode(event.data);
-			if (command.type === "waitForGame") {
-				pingClock = setInterval(ping, 20000);
-				if (isWaiting) {
-					var message = displayMessage("Waiting for opponent.<br>" + getJoinMessage(), function(e) {
-						if (!isWaiting)
-							this.destroy();
-					});
-					waitMessageId = message.getId();
-				}
-			} else if (command.type === "start") {
+			if (command.type === "start") {
 				playerId = command.data.id;
 				isWaiting = false;
 				if (typeof waitMessageId !== "undefined") {
@@ -253,8 +143,13 @@
 					turnSound.play();
 				}
 			} else if (command.type === "rack") {
-				rackData = command.data;
-				drawRack();
+				if (command.data.id === playerId) {
+					rackData = command.data.rack;
+					drawRack();
+				}
+			} else if (command.type === "rackPos") {
+					rackPos = command.data[playerId];
+					drawRack();
 			} else if (command.type === "board") {
 				board = command.data;
 				drawBoard();
@@ -264,11 +159,14 @@
 			} else if (command.type === "error") {
 				displayClickDestructMessage(command.data.message, 10000);
 			} else if (command.type === "log" || command.type === "chat") {
-				if (command.type === "chat")
-					chatSound.play();
+				//if (command.type === "chat")
+					//chatSound.play();
+				if (typeof command.data.player !== "undefined" && command.data.player !== playerId)
+					return;
 				var p = $("<p>");
 				p.html(command.data.message);
 				$("." + command.type).append(p);
+				$("." + command.type).find("div:lt(" + ($("." + command.type + " > div").length - 10) + ")").remove();
 				$("." + command.type)[0].scrollTop = $("." + command.type)[0].scrollHeight;
 			} else if (command.type === "players") {
 				clearInterval(clock);
@@ -283,8 +181,6 @@
 					$(".players").append(div);
 				}
 			} else if (command.type === "end") {
-				clearInterval(endClock);
-				clearInterval(pingClock);
 				var message = "";
 				if (command.data.winner === playerId)
 					message = "You have won the game."
@@ -318,13 +214,8 @@
 				var sec = Number.parseInt(timeString.substr(timeString.indexOf(":") + 1, timeString.length - 1))
 					* 1000;
 				var time = new Date(min + sec - 1000);
-				if (time <= 0) {
+				if (time <= 0)
 					clearInterval(clock);
-					socket.send(Codec.encode("checkEnd"));
-					endClock = setInterval(function() {
-						socket.send(Codec.encode("checkEnd"));
-					}, 5000);
-				}
 				$($(this).children("span")[2]).html(time.getMinutes() + ":" 
 					+ (time.getSeconds() > 9 ? "" : "0") + time.getSeconds());
 			}
@@ -400,6 +291,19 @@
 			}
 			rack.push(tile.getId());
 			x += tile.w;
+		});
+		rackPos.forEach(function(pos) {
+			for (var i = 0; i < rack.length; i++) {
+				var tile = Crafty(rack[i]);
+				if (tile.y > boardHeight && tile.text().toLowerCase() === pos.l.toLowerCase()) {
+					tile.x = pos.x * tile.w + pos.x * 2;
+					tile.y = pos.y * tile.h + pos.y * 2;
+					break;
+				}
+			}
+		});
+		rack.forEach(function(id) {
+			positionTileOnBoard.apply(Crafty(id));
 		});
 	}
 	

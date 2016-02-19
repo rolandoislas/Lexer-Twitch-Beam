@@ -33,7 +33,8 @@ Socket.prototype.run = function() {
 			handleMessage(that, message, socket);
 		});
 		socket.on("close", function(code, message) {
-			that.logic.endGame(socket.id);
+			if (typeof socket.auth !== "undefined" && socket.auth)
+				that.logic.endGame(socket.id);
 			delete that.sockets[socket.id];
 		});
 	});
@@ -49,6 +50,14 @@ Socket.prototype.send = function(recepients, message) {
 			that.sockets[recepient].send(message);
 		} catch(ignore) {}
 	});
+}
+
+Socket.prototype.broadcast = function(message) {
+	for (var key in this.sockets) {
+		try {
+			this.sockets[key].send(message);
+		} catch(ignore) {}
+	}
 }
 
 module.exports = Socket;

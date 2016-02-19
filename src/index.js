@@ -3,9 +3,13 @@ var Socket = require("./web/Socket");
 var Codec = require("./web/Codec");
 var Logic = require("./game/Logic");
 var Redis = require("./data/Redis");
+var Twitch = require("./web/api/Twitch");
+var Beam = require("./web/api/Beam");
 var redis = new Redis();
 
 var port = process.env.PORT;
+var id = "TwitchBeam";
+var size = 2;
 
 redis.clear();
 
@@ -16,104 +20,49 @@ webServer.addGet("/", function(req, res) {
 		description: "A word game built with web sockets and JavaScript."
 	});
 });
-webServer.addGet("/random/:size", function(req, res, next) {
-	req.params.size = parseInt(req.params.size);
-	if ((!Number.isInteger(req.params.size)) || req.params.size < 1 || req.params.size > 4)
-		return next();
+webServer.addGet("/beam", function(req, res, next) {
 	res.render("pages/game", {
-		title: "",
-		description: "Join a random game of Lexer.",
-		size: req.params.size
+		title: "Team Beam",
+		description: "Watch Lexer on team Beam.",
+		size: size,
+		id: id
 	});
 });
-webServer.addGet("/create/:size/:id", function(req, res, next) {
-	req.params.size = parseInt(req.params.size);
-	if ((!Number.isInteger(req.params.size)) || req.params.size < 1 || req.params.size > 4)
-		return next();
+webServer.addGet("/twitch", function(req, res, next) {
 	res.render("pages/game", {
-		title: "",
-		description: "Join a random game of Lexer.",
-		size: req.params.size,
-		id: req.params.id
+		title: "Team Twitch",
+		description: "Watch Lexer on team Twitch.",
+		size: size,
+		id: id
 	});
 });
-webServer.addGet("/join/:id", function(req, res, next) {
-	res.render("pages/game", {
-		title: "",
-		description: "Join a random game of Lexer.",
-		id: req.params.id
+webServer.addGet("/control", function(req, res, next) {
+	res.render("pages/control", {
+		title: "Control Panel",
+		description: "",
+		size: size,
+		id: id
 	});
 });
 
 var socketServer = new Socket(webServer.run());
 var logic = new Logic(socketServer);
-webServer.addGetLive("/ajax/getId", function(req, res, next) {
-	logic.getNewId(function(err, id) {
-		if (err)
-			res.status(500).json(err);
-		res.json({id: id});
-	});
-});
+var twitch = new Twitch(logic);
+var beam = new Beam(logic);
 socketServer.addCommand("requestGame", function(socket, command) {
-	logic.getOpenGame(socket.id, command.data.size, command.data.id, function(err, id) {
-		if (err)
-			return socket.send(Codec.encode("error"));
-		if (command.size == -1 && id == -1 && command.data.id != -1)
-			return socket.send(Codec.encode("error", {message: "Game not found."}));
-		if (id == -1)
-			logic.createNewLobby(socket.id, command.data.size, command.data.id, function(err) {
-				if (err)
-					return socket.send(Codec.encode("error", {message: err.message}));
-				socket.send(Codec.encode("waitForGame"));
-			});
-		else
-			socket.send(Codec.encode("waitForGame"));
+	logic.broadcastGameState();
+});
+socketServer.addCommand("auth", function(socket, command) {
+	if (command.data.auth.toString() === process.env.AUTH)
+		socket.auth = true;
+});
+socketServer.addCommand("createGame", function(socket, command) {
+	if (typeof socket.auth === "undefined" || !socket.auth)
+		return;
+	logic.createGame(size, id, function(err) {
+		twitch.enableChatControl(0);
+	    beam.enableChatControl(1);
 	});
-});
-socketServer.addCommand("boardPush", function(socket, command) {
-	logic.checkBoardPush(socket.id, command.data, function(err, accepted, reason, points) {
-		if (err)
-			socket.send(Codec.encode("error"));
-		if (accepted)
-			logic.startNextTurn(socket.id, points, function(err) {
-				if (err)
-					socket.send(Codec.encode("error"));
-			});
-		else
-			socket.send(Codec.encode("rejectPush", {reason: reason}));
-	});
-});
-socketServer.addCommand("skipTurn", function(socket, command) {
-	logic.startNextTurn(socket.id, 0, function(err, message) {
-		if (err)
-			return socket.send(Codec.encode("error"));
-		if (message)
-			return socket.send(Codec.encode("error", {message: message}));
-	});
-});
-socketServer.addCommand("checkEnd", function(socket, command) {
-	logic.checkEnd(socket.id, function(err, id) {
-		if (err)
-			socket.send(Codec.encode("error"));
-	});
-});
-socketServer.addCommand("swap", function(socket, command) {
-	logic.swapTiles(socket.id, command.data, function(err) {
-		if (err)
-			socket.send(Codec.encode("error"));
-		logic.startNextTurn(socket.id, 0, function(err, message) {
-			if (err)
-				return socket.send(Codec.encode("error"));
-			if (message)
-				return socket.send(Codec.encode("error", {message: message}));
-		});
-	});
-});
-socketServer.addCommand("checkWord", function(socket, command) {
-	logic.checkWord(socket.id, command.data.word);
-});
-socketServer.addCommand("chat", function(socket, command) {
-	logic.sendChat(socket.id, command.data.message);
 });
 socketServer.run();
 

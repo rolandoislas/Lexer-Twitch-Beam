@@ -11,10 +11,13 @@
     "ejs": "2.3.3",
     "express": "4.13.3",
 	"ws": "0.7.1",
-	"redis": "2.4.2"
+	"redis": "2.4.2",
+	"tmi.js": "0.0.26",
+	"beam-client-node": "0.1.2",
+	"request": "2.69.0"
   },
   "engines": {
-    "node": "0.12.7"
+    "node": "4.3.1"
   },
   "repository": {
     "type": "git",

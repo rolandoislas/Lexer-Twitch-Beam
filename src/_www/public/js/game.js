@@ -61,7 +61,7 @@
 	var socket;
 	var isWaiting = true;
 	var waitMessageId;
-	var playerId = (window.location.href.indexOf("twitch") > -1 ? 0 : 1);
+	var playerId = (window.location.pathname.indexOf("twitch") > -1 ? 0 : 1);
 	var turn;
 	var rack;
 	var rackData;

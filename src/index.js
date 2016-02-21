@@ -11,8 +11,6 @@ var port = process.env.PORT;
 var id = "TwitchBeam";
 var size = 2;
 
-redis.clear();
-
 var webServer = new Http(port);
 webServer.addGet("/", function(req, res) {
 	res.render("pages/index", {

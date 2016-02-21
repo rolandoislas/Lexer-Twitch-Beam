@@ -7,7 +7,7 @@ var Logic = function(socketServer) {
 	this.redis = new this.Redis();
 	this.socket = socketServer;
 	this.gameTime = 30 * 60 *1000; // 30 minutes
-	this.turnTime = 3 * 60 *1000; // 30 minutes
+	this.turnTime = 3 * 60 *1000; // 3 minutes
 	this.turnTimer;
 	this.blankBoard = [
 		["", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],
@@ -226,18 +226,39 @@ Logic.prototype.createNewLobby = function(player, size, id, callback) {
 
 Logic.prototype.createGame = function(size, id, callback) {
 	var that = this;
-	this.createNewLobby(0, size, id, function() {
-		that.getOpenGame(1, size, id, function(err, gameId) {
-			that.broadcastGameState();
-			that.socket.broadcast(that.Codec.encode("log", {message: "New game started."}));
-			clearInterval(that.turnTimer);
-			that.turnTimer = setInterval(function() {
-				that.startNextTurn(0, 0);
-			}, that.turnTime);
+	this.redis.get("games", function(err, data) {
+		if (err)
+			return callback(err);
+		// check if game is in redis cache
+		var found = false;
+		if (typeof data !== "undefined" && data !== null)
+			for (var i = 0; i < data.length; i++)
+				if (data[i].id == id)
+					found = true;
+		//  create new game if not found
+		if (!found)
+			that.createNewLobby(0, size, id, function() {
+				that.getOpenGame(1, size, id, function(err, gameId) {
+					startNewGame(that);
+					return callback(null);
+				});
+			});
+		else {
+			startNewGame(that);
 			return callback(null);
-		});
+		}
 	});
 };
+
+function startNewGame(that) {
+	// broadcast and start turn timer
+	that.broadcastGameState();
+	that.socket.broadcast(that.Codec.encode("log", {message: "New game started."}));
+	clearInterval(that.turnTimer);
+	that.turnTimer = setInterval(function() {
+		that.startNextTurn(0, 0);
+	}, that.turnTime);
+}
 
 function getId(games) {
 	var id = Math.random();

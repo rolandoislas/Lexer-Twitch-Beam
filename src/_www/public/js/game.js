@@ -116,6 +116,7 @@
 				size: typeof size === "undefined" ? -1 : size,
 				id: typeof id === "undefined" ? -1 : id
 			}));
+			clearInterval(pingClock);
 			pingClock = setInterval(ping, 20000);
 		};
 		socket.onclose = function(event) {
@@ -123,6 +124,8 @@
 			p.html("Disconnected from server.");
 			$(".log").append(p);
 			$(".log")[0].scrollTop = $(".log")[0].scrollHeight;
+			clearInterval(pingClock);
+			connectToServer();
 		};
 		socket.onmessage = function(event) {
 			console.log(event.data);

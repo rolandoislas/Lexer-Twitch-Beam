@@ -30,6 +30,8 @@
 			p.html("Disconnected from server.");
 			$(".log").append(p);
 			$(".log")[0].scrollTop = $(".log")[0].scrollHeight;
+			clearInterval(pingClock);
+			connectToServer();
 		};
 		socket.onmessage = function(event) {
 			console.log(event.data);
@@ -39,10 +41,10 @@
 				p.html(command.data.message);
 				$(".log").append(p);
 				$(".log")[0].scrollTop = $("." + command.type)[0].scrollHeight;
-			} else if (command.type === "end") {
-				socket.close();
-				setTimeout(connectToServer, 10000);
-			}
+			} else if (command.type === "end")
+				setTimeout(function() {
+					socket.close();
+				}, 10000);
 		};
 	}
 	

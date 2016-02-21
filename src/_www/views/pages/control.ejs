@@ -9,13 +9,21 @@
 		<% if (typeof id !== "undefined") { %>
 			var id = "<%= id %>";
 		<% } %>
+		var beamUser = "<%= beamUser %>";
+		var twitchUser = "<%= twitchUser %>";
 	</script>
 	<script src="/js/control.js"></script>
 </head>
 <body>
 	<% include ../partials/nav.ejs %>
-	<div class="log"></div>
-	<input id="auth" type="password">
-	<input id="start" type="button" value="Start">
+	<div class="controlContainer">
+		<div class="log"></div>
+		<input id="auth" type="password">
+		<input id="start" type="button" value="Start">
+	</div>
+	<div class="chatsContainer">
+		<input id="chatsToggle" type="button" value="Toggle Chats">
+		<div id="chats"></div>
+	</div>
 </boy>
 </html>

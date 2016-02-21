@@ -39,7 +39,9 @@ webServer.addGet("/control", function(req, res, next) {
 		title: "Control Panel",
 		description: "",
 		size: size,
-		id: id
+		id: id,
+		beamUser: process.env.BEAM_USERNAME,
+		twitchUser: process.env.TWITCH_USERNAME
 	});
 });
 

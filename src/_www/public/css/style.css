@@ -34,3 +34,10 @@
 .wordCheckSubmit, .chatSubmit {
 	width: 54px;
 }
+.streamChat {
+	width: 300px;
+	height: 500px;
+}
+.controlContainer, .chatsContainer {
+	float: left;
+}

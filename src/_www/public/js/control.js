@@ -2,6 +2,7 @@
 	
 	$(document).ready(function() {
 		$(document).on("click", "#start", connectToServer);
+		$(document).on("click", "#chatsToggle", toggleChats);
 	});
 	
 	var socket;
@@ -9,6 +10,24 @@
 	var pingClock;
 	var time;
 	var turnId;
+	
+	function toggleChats() {
+		var chats = $("#chats");
+		if (chats.html() === "") {
+			var urls = [
+				"https://beam.pro/embed/chat/$beam",
+				"http://www.twitch.tv/$twitch/chat"
+			];
+			urls.forEach(function(url) {
+				url = url.replace("$beam", beamUser).replace("$twitch", twitchUser);
+				var frame = $("<iframe>", {
+					"class": "streamChat"
+				}).attr("src", url);
+				chats.append(frame);
+			});
+		} else
+			chats.html("");
+	}
 	
 	function connectToServer() {
 		try {

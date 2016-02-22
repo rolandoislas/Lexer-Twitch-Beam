@@ -4,7 +4,9 @@ var Chat = function(logic) {
 };
 
 Chat.prototype.parseMessage = function(user, message, callback) {
-	if (/^\d{1,2}-\d{1,2}\s\w$/.test(message)) { // "(int)-(int) (char)" position tile
+	if (/^\d{1,2}[-\s]\d{1,2}\s\w$/.test(message)) { // "(int)-(int) (char)" position tile
+		if (message.indexOf("-") < 0)
+			message = message.replace(" ", "-");
 		var letter = message.split(" ")[1];
 		if (letter.length != 1 || !(/[a-z]/i.test(letter)))
 			return callback("Invalid letter.");
@@ -32,6 +34,8 @@ Chat.prototype.parseMessage = function(user, message, callback) {
 		this.logic.swapTile(this.player, letter, user.username, function(err) {
 			return callback(err);
 		});
+	} else if (/^[a-z]{1}$/i.test(message)) { // single letter
+		return callback("To play a letter you must enter coordinates. Ex. 0-7 " + message);
 	}
 };
 

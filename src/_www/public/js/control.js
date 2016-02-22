@@ -22,7 +22,7 @@
 				url = url.replace("$beam", beamUser).replace("$twitch", twitchUser);
 				var frame = $("<iframe>", {
 					"class": "streamChat"
-				}).attr("src", url);
+				}).attr("src", url.toLowerCase());
 				chats.append(frame);
 			});
 		} else

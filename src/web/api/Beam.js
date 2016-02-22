@@ -11,6 +11,7 @@ var Beam = function(logic) {
 function connect(that) {
 	getData(that, function(user, chat) {
 		that.client = new that.Beam(chat.endpoints).boot();
+		setChatHandler(that);
 		that.client.call("auth", [user.channel.id, user.id, chat.authkey])
 			.then(function () {
 				console.log("Beam is now authenticated.");
@@ -44,9 +45,11 @@ function getData(that, callback) {
 
 Beam.prototype.enableChatControl = function(player) {
 	this.chat.setPlayer(player);
-	var that = this;
-	if (typeof this.chatHandler === "undefined")
-		this.chatHandler = function(data) {
+};
+
+function setChatHandler(that) {
+	if (typeof that.chatHandler === "undefined")
+		that.chatHandler = function(data) {
 			var user = {};
 			user.username = data.user_name;
 			var message = "";
@@ -61,8 +64,8 @@ Beam.prototype.enableChatControl = function(player) {
 					that.client.call("msg", ["@" + user.username + " Move Rejected. Reason: " + err]);
 			});
 		};
-	this.client.removeListener("ChatMessage", this.chatHandler);
-	this.client.on("ChatMessage", this.chatHandler);
-};
+	that.client.removeListener("ChatMessage", that.chatHandler);
+	that.client.on("ChatMessage", that.chatHandler);
+}
 
 module.exports = Beam;

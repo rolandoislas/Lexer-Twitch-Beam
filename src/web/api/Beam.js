@@ -61,7 +61,8 @@ function setChatHandler(that) {
 			});
 			that.chat.parseMessage(user, message, function(err) {
 				if (err)
-					that.client.call("msg", ["@" + user.username + " Move Rejected. Reason: " + err]);
+					return that.client.call("msg", ["@" + user.username + " Move Rejected. Reason: " + err]);
+				that.client.call("msg", ["Move accepted: \"" + message + "\""]);
 			});
 		};
 	that.client.removeListener("ChatMessage", that.chatHandler);

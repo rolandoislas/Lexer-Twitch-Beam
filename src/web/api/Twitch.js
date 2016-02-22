@@ -33,8 +33,10 @@ Twitch.prototype.enableChatControl = function(player) {
 		this.chatHandler = function(channel, user, message, self) {
 			that.chat.parseMessage(user, message, function(err) {
 				if (err)
-					that.client.say("#" + process.env.TWITCH_USERNAME, 
+					return that.client.say("#" + process.env.TWITCH_USERNAME, 
 						"@" + user.username + " Move Rejected. Reason: " + err);
+				that.client.say("#" + process.env.TWITCH_USERNAME, 
+						"Move accepted: \"" + message + "\"");
 			});
 		};
 	this.client.removeListener("chat", this.chatHandler);

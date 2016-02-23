@@ -78,8 +78,6 @@
 	var swapping;
 	var swapMessageId;
 	var pingClock;
-	var turnSound = new Audio("/audio/turn.mp3");
-	var chatSound = new Audio("/audio/chat.mp3");
 	
 	function loadGame() {
 		createBackground();
@@ -141,10 +139,8 @@
 				clock = setInterval(decrementActivePlayerTime, 1000);
 				turnId = command.data.player;
 				turn = command.data.player == playerId;
-				if (turn) {
+				if (turn)
 					displayClickDestructMessage("It's your turn.", 10000);
-					turnSound.play();
-				}
 			} else if (command.type === "rack") {
 				if (command.data.id === playerId) {
 					rackData = command.data.rack;
@@ -162,8 +158,6 @@
 			} else if (command.type === "error") {
 				displayClickDestructMessage(command.data.message, 10000);
 			} else if (command.type === "log" || command.type === "chat") {
-				//if (command.type === "chat")
-					//chatSound.play();
 				if (typeof command.data.player !== "undefined" && command.data.player !== playerId)
 					return;
 				var p = $("<p>");
@@ -213,8 +207,8 @@
 		$(".players > div").each(function() {
 			if ($(this).data("id") == turnId) {
 				var timeString = $($(this).children("span")[2]).html();
-				var min = Number.parseInt(timeString.substr(0, timeString.indexOf(":"))) * 60 * 1000;
-				var sec = Number.parseInt(timeString.substr(timeString.indexOf(":") + 1, timeString.length - 1))
+				var min = parseInt(timeString.substr(0, timeString.indexOf(":"))) * 60 * 1000;
+				var sec = parseInt(timeString.substr(timeString.indexOf(":") + 1, timeString.length - 1))
 					* 1000;
 				var time = new Date(min + sec - 1000);
 				if (time <= 0)

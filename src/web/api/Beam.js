@@ -1,5 +1,6 @@
 var Beam = function(logic) {
-	this.Beam = require("beam-client-node/lib/ws");
+	this.BeamSocket = require("beam-client-node/lib/ws");
+	this.BeamClient = require("beam-client-node");
 	this.Chat = require("../../game/Chat.js");
 	this.request = require("request");
 	this.chat = new this.Chat(logic);
@@ -9,37 +10,30 @@ var Beam = function(logic) {
 };
 
 function connect(that) {
-	getData(that, function(user, chat) {
-		that.client = new that.Beam(chat.endpoints).boot();
-		setChatHandler(that);
-		that.client.call("auth", [user.channel.id, user.id, chat.authkey])
-			.then(function () {
-				console.log("Beam is now authenticated.");
-			}).catch(function (err) {
-				console.log("An error occurred authenticating Beam.")
-			});
-	});
-}
-
-function getData(that, callback) {
+	that.client = new that.BeamClient();
 	var postData = {
 		username: process.env.BEAM_USERNAME,
 		password: process.env.BEAM_AUTH
 	};
-	that.request({
-		method: "POST",
-		uri: "https://beam.pro/api/v1/users/login",
-		form: postData,
-		jar: true
-	}, function(err, res, body) {
-		var user = JSON.parse(body);
-		that.request({
-			method: "GET",
-			uri: "https://beam.pro/api/v1/chats/" + user.channel.id,
-			jar: true
-		}, function(err, res, body) {
-			return callback(user, JSON.parse(body));
-		});
+	that.client.use("oauth", {
+		tokens: {
+			access: process.env.BEAM_AUTH,
+			expires: Date.now() + (365 * 24 * 60 * 60 * 1000)
+		}
+	});
+	var user;
+	that.client.request("GET", "users/current", {jar:true})
+	.then(response => {
+		user = response.body;
+		return that.client.chat.join(response.body.channel.id);
+	})
+	.then(response => {
+		setChatHandler(that, user.id, user.channel.id, 
+			response.body.endpoints, response.body.authkey);
+		console.log("Beam is now authenticated.");
+	})
+	.catch(error => {
+		console.log("An error occurred authenticating Beam.", error);
 	});
 }
 
@@ -47,7 +41,16 @@ Beam.prototype.enableChatControl = function(player) {
 	this.chat.setPlayer(player);
 };
 
-function setChatHandler(that) {
+function setChatHandler(that, userId, channelId, endpoints, authkey) {
+	var sock = new that.BeamSocket(endpoints).boot();
+	sock.auth(channelId, userId, authkey)
+	.then(() => {
+		console.log("Beam chat connected");
+	})
+	.catch(error => {
+		console.log("Beam chat failed to connect.", error);
+	});
+	
 	if (typeof that.chatHandler === "undefined")
 		that.chatHandler = function(data) {
 			var user = {};
@@ -61,12 +64,15 @@ function setChatHandler(that) {
 			});
 			that.chat.parseMessage(user, message, function(err) {
 				if (err)
-					return that.client.call("msg", ["@" + user.username + " Move Rejected. Reason: " + err]);
-				that.client.call("msg", ["Move accepted: \"" + message + "\""]);
+					return sock.call("msg", ["@" + user.username + " Move Rejected. Reason: " + err]);
+				sock.call("msg", ["Move accepted: \"" + message + "\""]);
 			});
 		};
-	that.client.removeListener("ChatMessage", that.chatHandler);
-	that.client.on("ChatMessage", that.chatHandler);
+	sock.removeListener("ChatMessage", that.chatHandler);
+	sock.on("ChatMessage", that.chatHandler);
+	sock.on('error', error => {
+        console.error('Beam chat socket error', error);
+    });
 }
 
 module.exports = Beam;

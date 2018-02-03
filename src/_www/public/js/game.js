@@ -1,9 +1,11 @@
 !function() {
-	
-	var width = 600;
-	var height = 650;
-	var boardWidth = width;
-	var boardHeight = boardWidth;
+
+    var boardWidth = 600;
+    var boardHeight = 600;
+    var tileSize = boardWidth / 15;
+	var width = boardWidth + tileSize;
+	var height = boardHeight + tileSize + 50;
+
 	
 	$(document).ready(function() {
 		Crafty.init(width, height, $(".game")[0]);
@@ -271,10 +273,8 @@
 			rack.forEach(function(id) {
 				Crafty(id).destroy();
 			});
-		var temp = createTile("");
-		var x = (height - boardHeight - temp.h) / 2;
-		var y = boardHeight + x;
-		temp.destroy();
+		var x = tileSize * 1.15;
+		var y = boardHeight + tileSize * 1.15;
 		rack = [];
 		rackData.forEach(function(letter) {
 			var tile = createTile(letter.replace("blank", "").toUpperCase(), x, y);
@@ -292,7 +292,9 @@
 		rackPos.forEach(function(pos) {
 			for (var i = 0; i < rack.length; i++) {
 				var tile = Crafty(rack[i]);
-				if (tile.y > boardHeight && tile.text().toLowerCase() === pos.l.toLowerCase()) {
+				if ((tile.y > boardHeight + tileSize || tile.y < tileSize || tile.x < tileSize ||
+						tile.x > boardWidth + tileSize) &&
+						tile.text().toLowerCase() === pos.l.toLowerCase()) {
 					tile.x = pos.x * tile.w + pos.x * 2;
 					tile.y = pos.y * tile.h + pos.y * 2;
 					break;
@@ -307,21 +309,22 @@
 	function positionTileOnBoard(e) {
 		var x = this.x + this.w / 2;
 		var y = this.y + this.h / 2;
-		var entities = getEntitiesAtLocation(x, y);
-		if (entities.length <= 2 && entities.length > 1 && y <= boardHeight) {
+		var entities = getEntitiesAtLocation(x+10, y+10);
+		if (entities.length <= 2 && entities.length > 1 && y <= boardHeight + tileSize && y >= tileSize &&
+				x >= tileSize && x <= boardWidth + tileSize) {
 			var backTile = entities[0];
 			// Remove border and set proper size
 			this.css("border", "none");
-			this.x = backTile.x + (backTile.x == 0 ? 1 : 0);
-			this.y = backTile.y + (backTile.y == 0 ? 1 : 0);
+			this.x = backTile.x + (backTile.x === tileSize ? 1 : 0);
+			this.y = backTile.y + (backTile.y === tileSize ? 1 : 0);
 			this.w = backTile.w;
 			this.h = backTile.h;
 			this.color("rgb(204, 204, 204)");
 		} else {
 			this.css("border", "1px solid rgb(0, 0, 0)");
 			this.color("rgb(237, 221, 175)");
-			x = (height - boardHeight - this.h) / 2;
-			y = boardHeight + x;
+			x = tileSize * 1.15;
+			y = boardHeight + tileSize * 1.15;
 			for (var i = 0; i < 7; i++) {
 				entities = getEntitiesAtLocation(x+10, y+10);
 				if (entities.length == 0 || (entities.length == 1 && this === entities[0])) {
@@ -374,24 +377,55 @@
 	}
 	
 	function createBackground() {
+		var letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 		Crafty.background("rgb(204, 204, 204)");
-		var tileSize = boardWidth / 15;
-		var x = 0;
-		var y = 0;
+		var x = tileSize;
+		var y = tileSize;
 		backBoard = [];
+        var createdCoords = false;
+        // Create corder tile
+		createTile("", 0, 0, {
+            top: false,
+            right: false,
+            bottom: false,
+            left: false
+        }, "rgb(255, 255, 255)");
+        // Create all board tiles
 		baseBoard.forEach(function(line) {
-			backBoard[baseBoard.indexOf(line)] = [];
-			line.forEach(function(tile) {
-				var tile = createTile(tile, x, y, {
-					top: y == 0,
+			var lineIndex = baseBoard.indexOf(line);
+			// Generate line coord tile
+			createTile(lineIndex <= 9 ? String(lineIndex) + "\n" : String(lineIndex), 0, y, {
+                top: false,
+                right: false,
+                bottom: false,
+                left: false
+            }, "rgb(255, 255, 255)");
+			// Generate board line tiles
+			backBoard[lineIndex] = [];
+			var tileIndex = 0;
+			line.forEach(function(tileString) {
+				// Generate tile coord tile
+				if (!createdCoords) {
+                    createTile(letters[tileIndex] + "\n", x, 0, {
+                        top: false,
+                        right: false,
+                        bottom: false,
+                        left: false
+                    }, "rgb(255, 255, 255)");
+                }
+				// Generate actual tile
+				var tile = createTile(tileString, x, y, {
+					top: y === tileSize,
 					right: true,
 					bottom: true,
-					left: x == 0
+					left: x === tileSize
 				});
 				backBoard[baseBoard.indexOf(line)].push(tile.getId());
 				x += tileSize;
+				tileIndex++;
 			});
-			x = 0;
+			createdCoords = true;
+			x = tileSize;
 			y += tileSize;
 		});
 	}

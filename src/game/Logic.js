@@ -708,6 +708,8 @@ Logic.prototype.submitTilePosition = function(player, x, y, letter, chatName, ca
 		for (var i = 0; i < data.length; i++)
 			if (data[i].players.indexOf(player) > -1)
 				game = i;
+		if (data[game] === null || typeof data[game] === "undefined")
+			return callback("Game restarting");
 		// check if tile is in rack
 		var pid = data[game].players.indexOf(player);
 		var count = 0;

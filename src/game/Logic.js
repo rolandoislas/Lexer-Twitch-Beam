@@ -638,7 +638,7 @@ function doEnd(that, game, disconnected) {
 		// Start a new game
         if (process.env.GAME_DAEMON === "true") {
             console.log("Starting game");
-            createGame(size, id, function (err) {
+            that.createGame(2, "TwitchBeam", function (err) {
             	if (err) {
                     console.log(err);
                     process.exit(1);

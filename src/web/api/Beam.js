@@ -5,6 +5,7 @@ var Beam = function(logic) {
 	this.request = require("request");
 	this.chat = new this.Chat(logic);
 	this.client;
+	this.sock;
 	this.chatHandler;
 	connect(this);
 };
@@ -35,6 +36,7 @@ function connect(that) {
 	})
 	.catch(error => {
 		console.log("An error occurred authenticating Beam.", error);
+        setTimeout(connect, 30000, that);
 	});
 }
 
@@ -43,13 +45,14 @@ Beam.prototype.enableChatControl = function(player) {
 };
 
 function setChatHandler(that, userId, channelId, endpoints, authkey) {
-	var sock = new that.BeamSocket(endpoints).boot();
-	sock.auth(channelId, userId, authkey)
+	that.sock = new that.BeamSocket(endpoints).boot();
+    that.sock.auth(channelId, userId, authkey)
 	.then(() => {
 		console.log("Beam chat connected");
 	})
 	.catch(error => {
 		console.log("Beam chat failed to connect.", error);
+        setTimeout(setChatHandler, 30000, that, userId, channelId, endpoints, authkey);
 	});
 	
 	if (typeof that.chatHandler === "undefined")
@@ -65,15 +68,20 @@ function setChatHandler(that, userId, channelId, endpoints, authkey) {
 			});
 			that.chat.parseMessage(user, message, function(err) {
 				if (err)
-					return sock.call("msg", ["@" + user.username + " Move Rejected. Reason: " + err]);
-				sock.call("msg", ["Move accepted: \"" + message + "\""]);
+					return that.sock.call("msg", ["@" + user.username + " Move Rejected. Reason: " + err]);
+                that.sock.call("msg", ["Move accepted: \"" + message + "\""]);
 			});
 		};
-	sock.removeListener("ChatMessage", that.chatHandler);
-	sock.on("ChatMessage", that.chatHandler);
-	sock.on('error', error => {
+    that.sock.removeListener("ChatMessage", that.chatHandler);
+    that.sock.on("ChatMessage", that.chatHandler);
+    that.sock.on('error', error => {
         console.error('Beam chat socket error', error);
+    	setTimeout(setChatHandler, 30000, that, userId, channelId, endpoints, authkey);
     });
+    that.sock.on("closed", () => {
+    	console.log("Socket closed. reconnecting");
+    	setTimeout(setChatHandler, 30000, that, userId, channelId, endpoints, authkey);
+	});
 }
 
 module.exports = Beam;

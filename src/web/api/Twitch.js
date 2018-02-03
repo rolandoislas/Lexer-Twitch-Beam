@@ -27,6 +27,10 @@ function connect(that) {
     that.client.on("connected", function (address, port) {
 		console.log("Connected to Twitch");
     });
+    that.client.on("disconnected", function (reason) {
+        console.log("Twitch disconnected. Reconnecting in 30 seconds");
+		setTimeout(connect, 30000, that);
+    });
 	that.client.connect();
 }
 

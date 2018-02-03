@@ -638,7 +638,7 @@ function doEnd(that, game, disconnected) {
 		// Start a new game
         if (process.env.GAME_DAEMON === "true") {
             console.log("Starting game");
-            logic.createGame(size, id, function (err) {
+            createGame(size, id, function (err) {
             	if (err) {
                     console.log(err);
                     process.exit(1);

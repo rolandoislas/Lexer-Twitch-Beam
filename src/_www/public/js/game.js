@@ -231,8 +231,8 @@
 		for (var i = 0; i < board.length; i++) {
 			for (var j = 0; j < board[i].length; j++) {
 				if (board[i][j].length > 0) {
-					var x = temp.w * j + temp.w / 2 + 10;
-					var y = temp.h * i + temp.h / 2 + 10;
+					var x = temp.w * j + temp.w / 2 + 10 + tileSize;
+					var y = temp.h * i + temp.h / 2 + 10 + tileSize;
 					var backTile = getEntitiesAtLocation(x, y)[0];
 					var tile = createTile(board[i][j].replace("blank", ""), backTile.x, backTile.y)
 						.css("border", "none");

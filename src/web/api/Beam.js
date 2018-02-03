@@ -10,6 +10,7 @@ var Beam = function(logic) {
 };
 
 function connect(that) {
+	console.log("Connecting to Beam");
 	that.client = new that.BeamClient();
 	var postData = {
 		username: process.env.BEAM_USERNAME,

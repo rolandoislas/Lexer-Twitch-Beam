@@ -8,6 +8,7 @@ var Twitch = function(logic) {
 };
 
 function connect(that) {
+	console.log("Connecting to Twitch");
 	var options = {
 		options: {
 			debug: process.env.NODE_ENV === "development"
@@ -23,6 +24,9 @@ function connect(that) {
 		channels: ["#" + process.env.TWITCH_USERNAME]
 	};
 	that.client = new that.Tmi.client(options);
+    that.client.on("connected", function (address, port) {
+		console.log("Connected to Twitch");
+    });
 	that.client.connect();
 }
 

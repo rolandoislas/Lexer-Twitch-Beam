@@ -295,8 +295,8 @@
 				if ((tile.y > boardHeight + tileSize || tile.y < tileSize || tile.x < tileSize ||
 						tile.x > boardWidth + tileSize) &&
 						tile.text().toLowerCase() === pos.l.toLowerCase()) {
-					tile.x = pos.x * tile.w + pos.x * 2;
-					tile.y = pos.y * tile.h + pos.y * 2;
+					tile.x = pos.x * tile.w + pos.x * 2 + tileSize;
+					tile.y = pos.y * tile.h + pos.y * 2 + tileSize;
 					break;
 				}
 			}

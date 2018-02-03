@@ -12,7 +12,7 @@ Chat.prototype.parseMessage = function(user, message, callback) {
 			return callback("Invalid letter.");
 		var x = parseInt(message.split(" ")[0].split("-")[0]);
 		var y = parseInt(message.split(" ")[0].split("-")[1]);
-		if (x > 14 || y > 14)
+		if (x > 14 || y < 0)
 			return callback("Coordinates must range from 0 to 14.");
 		this.logic.submitTilePosition(this.player, x, y, letter, user.username, function(err) {
 			return callback(err);

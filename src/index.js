@@ -74,6 +74,10 @@ process.on("uncaughtException", function(err) {
 function createGame() {
 	console.log("Starting game");
     logic.createGame(size, id, function(err) {
+        if (err) {
+            console.log(err);
+            process.exit(1)
+        }
         twitch.enableChatControl(0);
         beam.enableChatControl(1);
     });

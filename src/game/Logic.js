@@ -285,6 +285,8 @@ Logic.prototype.checkBoardPush = function(player, proposedBoard, callback) {
 		for (var i = 0; i < data.length; i++)
 			if (data[i].players.indexOf(player) > -1)
 				game = i;
+        if (data[game] === null || typeof data[game] === "undefined" || data.length === 0)
+            return callback("Game restarting");
 		// check turn
 		if (player != data[game].players[data[game].turn])
 			return callback(null, false, "Your turn, it is not.");
@@ -474,6 +476,8 @@ Logic.prototype.checkWord = function(player, word) {
 		for (var i = 0; i < data.length; i++)
 			if (data[i].players.indexOf(player) > -1)
 				game = i;
+        if (data[game] === null || typeof data[game] === "undefined" || data.length === 0)
+            return callback("Game restarting");
 		// check word
 		isWordValid(that, word, function(valid) {
 			var playerName = "[Word Lookup] " + data[game].name[player];
@@ -504,6 +508,8 @@ Logic.prototype.startNextTurn = function(player, points, callback) {
 		for (var i = 0; i < data.length; i++)
 			if (data[i].players.indexOf(player) > -1)
 				game = i;
+        if (data[game] === null || typeof data[game] === "undefined" || data.length === 0)
+            return callback("Game restarting");
 		// check turn
 		if (data[game].players[data[game].turn] != player)
 			return callback(null, "Do not skip your opponent's turn, you maniac.");
@@ -552,6 +558,8 @@ Logic.prototype.checkEnd = function(player, callback) {
 		for (var i = 0; i < data.length; i++)
 			if (data[i].players.indexOf(player) > -1)
 				game = i;
+        if (data[game] === null || typeof data[game] === "undefined" || data.length === 0)
+            return callback("Game restarting");
 		if (typeof game === "undefined") {
 			that.socket.broadcast(that.Codec.encode("end", {winner: -1}));
 			return callback(null);
@@ -619,12 +627,24 @@ function doEnd(that, game, disconnected) {
 	}
 	// delete game
 	that.redis.get("games", function(err, data) {
+		if (err)
+			data = [];
 		var index;
 		for (var i = 0; i < data.length; i++)
 			if (data[i].id == game.id)
 				index = i;
 		data.splice(index);
 		that.redis.set("games", data);
+		// Start a new game
+        if (process.env.GAME_DAEMON === "true") {
+            console.log("Starting game");
+            logic.createGame(size, id, function (err) {
+            	if (err) {
+                    console.log(err);
+                    process.exit(1);
+                }
+            });
+        }
 	});
 }
 
@@ -649,6 +669,8 @@ Logic.prototype.swapTiles = function(player, swap, callback) {
 		for (var i = 0; i < data.length; i++)
 			if (data[i].players.indexOf(player) > -1)
 				game = i;
+        if (data[game] === null || typeof data[game] === "undefined" || data.length === 0)
+            return callback("Game restarting");
 		// remove matching tiles
 		var pid = data[game].players.indexOf(player);
 		var size = data[game].rack[pid].length;
@@ -690,6 +712,8 @@ Logic.prototype.sendChat = function(player, message) {
 		for (var i = 0; i < data.length; i++)
 			if (data[i].players.indexOf(player) > -1)
 				game = i;
+        if (data[game] === null || typeof data[game] === "undefined" || data.length === 0)
+            return callback("Game restarting");
 		// clean message
 		message = message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 		message = data[game].name[player] + ": " + message;
@@ -708,7 +732,7 @@ Logic.prototype.submitTilePosition = function(player, x, y, letter, chatName, ca
 		for (var i = 0; i < data.length; i++)
 			if (data[i].players.indexOf(player) > -1)
 				game = i;
-		if (data[game] === null || typeof data[game] === "undefined")
+		if (data[game] === null || typeof data[game] === "undefined" || data.length === 0)
 			return callback("Game restarting");
 		// check if tile is in rack
 		var pid = data[game].players.indexOf(player);
@@ -765,6 +789,8 @@ Logic.prototype.removeTile = function(player, x, y, chatName, callback) {
 		for (var i = 0; i < data.length; i++)
 			if (data[i].players.indexOf(player) > -1)
 				game = i;
+        if (data[game] === null || typeof data[game] === "undefined" || data.length === 0)
+            return callback("Game restarting");
 		// remove tile from pending if found
 		var index = -1;
 		data[game].rackPos[player].forEach(function(tile) {
@@ -795,6 +821,8 @@ Logic.prototype.submitTurn = function(player, chatName, callback) {
 		for (var i = 0; i < data.length; i++)
 			if (data[i].players.indexOf(player) > -1)
 				game = i;
+        if (data[game] === null || typeof data[game] === "undefined" || data.length === 0)
+            return callback("Game restarting");
 		// submit board push
 		var proposedBoard = JSON.parse(JSON.stringify(data[game].board));
 		data[game].rackPos[player].forEach(function(tile) {

@@ -1,6 +1,6 @@
 {
   "name": "lexer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A word game.",
   "author": "Rolando Islas <admin@rolandoislas.com>",
   "main": "index.js",

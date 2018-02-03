@@ -638,12 +638,16 @@ function doEnd(that, game, disconnected) {
 		// Start a new game
         if (process.env.GAME_DAEMON === "true") {
             console.log("Starting game");
-            that.createGame(2, "TwitchBeam", function (err) {
-            	if (err) {
-                    console.log(err);
-                    process.exit(1);
-                }
-            });
+            var message = "Starting new game in 10 seconds.";
+            that.socket.broadcast(that.Codec.encode("log", {message: message}));
+            setTimeout(function () {
+                that.createGame(2, "TwitchBeam", function (err) {
+                    if (err) {
+                        console.log(err);
+                        process.exit(1);
+                    }
+                });
+            }, 10000)
         }
 	});
 }

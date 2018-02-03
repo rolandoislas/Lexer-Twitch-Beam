@@ -57,12 +57,9 @@ socketServer.addCommand("auth", function(socket, command) {
 		socket.auth = true;
 });
 socketServer.addCommand("createGame", function(socket, command) {
-	if (typeof socket.auth === "undefined" || !socket.auth)
+	if (socket.auth == null || typeof socket.auth === "undefined" || !socket.auth)
 		return;
-	logic.createGame(size, id, function(err) {
-		twitch.enableChatControl(0);
-	    beam.enableChatControl(1);
-	});
+	createGame();
 });
 socketServer.run();
 
@@ -70,3 +67,17 @@ process.on("uncaughtException", function(err) {
     console.log("#########");
     console.log(err.stack);
 });
+
+/**
+ * Start the game
+ */
+function createGame() {
+	console.log("Starting game");
+    logic.createGame(size, id, function(err) {
+        twitch.enableChatControl(0);
+        beam.enableChatControl(1);
+    });
+}
+
+if (process.env.GAME_DAEMON === "true")
+	createGame();

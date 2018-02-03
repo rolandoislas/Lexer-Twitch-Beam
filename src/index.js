@@ -66,6 +66,7 @@ socketServer.run();
 process.on("uncaughtException", function(err) {
     console.log("#########");
     console.log(err.stack);
+    process.exit(1);
 });
 
 /**

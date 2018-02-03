@@ -6,8 +6,8 @@ var Logic = function(socketServer) {
 	this.fs = require("fs");
 	this.redis = new this.Redis();
 	this.socket = socketServer;
-	this.gameTime = 30 * 60 *1000; // 30 minutes
-	this.turnTime = 3 * 60 *1000; // 3 minutes
+    this.gameTime = 30 * 60 *1000; // 30 minutes
+    this.turnTime = 3 * 60 *1000; // 3 minutes
 	this.turnTimer;
 	this.blankBoard = [
 		["", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],
@@ -586,7 +586,7 @@ Logic.prototype.checkEnd = function(player, callback) {
 			for (var j = 0; j < data[game].players.length; j++)
 				if (data[game].players[j] != player)
 					time -= data[game].time[data[game].players[i]] - data[game].startTime;
-			if (time - data[game].startTime > that.gameTime) {
+			if (time - data[game].startTime >= that.gameTime) {
 				data[game].time[data[game].players[i]] = data[game].startTime + that.gameTime;
 				doEnd(that, data[game]);
 				return callback(null);

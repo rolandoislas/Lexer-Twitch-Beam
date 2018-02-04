@@ -73,7 +73,7 @@ def parse_args():
                              "-fps", "30",
                              "-background", "#ffffff",
                              "-format", "jpg",
-                             "-dir", cwd + "/out/beam"]
+                             "-dir", cwd + "/out/mixer"]
 
 
 parse_args()
